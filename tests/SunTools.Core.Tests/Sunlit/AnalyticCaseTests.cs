@@ -106,6 +106,33 @@ public class AnalyticCaseTests
         Close(0.5, F(RectWindow(1, 1), shade, Sun(0, 0, 1)), Tol);
     }
 
+    [Theory]
+    [InlineData(0.01, 0.5236)]
+    [InlineData(0.05, 0.3)]
+    public void Glass_as_shade_casts_no_shadow_on_a_small_rotated_georeferenced_window(double size, double angle)
+    {
+        // Vertical window facing a rotated horizontal direction, far from the origin: the frame
+        // origin is rounded, so the glass must not appear slightly in front of itself.
+        var o = V(500000.123, 4000000.456, 120.789);
+        var along = V(Math.Cos(angle), Math.Sin(angle), 0);
+        var up = V(0, 0, 1);
+        var pts = new[] { o, o + along * size, o + along * size + up * size, o + up * size };
+        var window = Window.Create(pts);
+        var glass = new ShadeMesh(pts, new[] { 0, 1, 2, 0, 2, 3 });
+        var sun = (window.Normal + along * 0.2 + up * 0.3).Normalized();
+        Close(1, F(window, glass, sun), Tol);
+    }
+
+    [Theory]
+    [InlineData(1e-8)]
+    [InlineData(5e-7)]
+    public void Glass_as_shade_casts_no_shadow_when_the_window_is_planar_only_within_tolerance(double dev)
+    {
+        var pts = new[] { V(0, 0, 0), V(1, 0, 0), V(1, 1, dev), V(0, 1, 0) };
+        var glass = new ShadeMesh(pts, new[] { 0, 1, 2, 0, 2, 3 });
+        Close(1, F(Window.Create(pts), glass, Sun(0.2, 0.3, 1)), Tol);
+    }
+
     [Fact]
     public void Nearly_grazing_sun_does_not_overflow()
     {

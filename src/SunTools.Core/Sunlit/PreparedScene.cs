@@ -10,7 +10,9 @@ namespace SunTools.Core.Sunlit;
 internal sealed class PreparedScene
 {
     private const double DegenerateAreaTolerance = 1e-12; // × Scale²
-    private const double CoplanarTolerance = 1e-9;        // normalised units
+    // Same as the window planarity tolerance: geometry the window would accept as its own plane
+    // (the glass itself, a coplanar wall) must not shade it.
+    private const double CoplanarTolerance = Window.PlanarityTolerance; // normalised units
 
     private PreparedScene(Window window, List<Vec3[]> pieces, int degenerate, Path64 windowPath)
     {
