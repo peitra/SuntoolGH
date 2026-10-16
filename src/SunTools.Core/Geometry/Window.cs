@@ -10,13 +10,15 @@ namespace SunTools.Core.Geometry;
 /// </summary>
 public sealed class Window
 {
-    private const double PlanarityTolerance = 1e-6;   // × Scale
+    internal const double PlanarityTolerance = 1e-6;  // × Scale
+    private const double DuplicateTolerance = 1e-6;   // × bounding diagonal
     private const double NormalTolerance = 1e-6;      // on |cos| between given and polygon normal
     private const double IntersectionEpsilon = 1e-12; // normalised units
 
     private Window(IReadOnlyList<Vec3> vertices, Vec3 normal, Vec3 origin, Vec3 u, Vec3 v,
-        double scale, double area, Point2[] outline)
+        double scale, double area, Point2[] outline, double planeOffset)
     {
+        _planeOffset = planeOffset;
         Vertices = vertices;
         Normal = normal;
         Origin = origin;
@@ -30,6 +32,10 @@ public sealed class Window
         MinY = outline.Min(p => p.Y);
         MaxY = outline.Max(p => p.Y);
     }
+
+    // Distance from Origin to the glass plane along Normal. Origin is rounded in georeferenced
+    // models, so it is generally not exactly on the plane.
+    private readonly double _planeOffset;
 
     public IReadOnlyList<Vec3> Vertices { get; }
     /// <summary>Unit outward normal (the side the sun must be on).</summary>
@@ -49,7 +55,8 @@ public sealed class Window
     internal double MaxY { get; }
 
     /// <summary>Validates the polygon and builds its frame.</summary>
-    /// <param name="vertices">Polygon vertices in metres; a repeated closing vertex is ignored.</param>
+    /// <param name="vertices">Polygon vertices in metres; repeated consecutive vertices (including a
+    /// closing vertex equal to the first) are ignored.</param>
     /// <param name="normal">Outward normal; defaults to the right-hand rule on the vertex order.</param>
     /// <exception cref="ArgumentException">Fewer than 3 vertices, non-finite, zero area, non-planar,
     /// self-intersecting, or a normal not perpendicular to the plane.</exception>
@@ -62,8 +69,7 @@ public sealed class Window
                 throw new ArgumentException($"Window vertex {i} is not finite.", nameof(vertices));
 
         double diag = BoundingDiagonal(pts);
-        if (pts.Count > 1 && (pts[pts.Count - 1] - pts[0]).Length <= 1e-9 * Math.Max(1.0, diag))
-            pts.RemoveAt(pts.Count - 1);
+        pts = RemoveRepeatedVertices(pts, DuplicateTolerance * diag);
         if (pts.Count < 3)
             throw new ArgumentException("A window needs at least 3 distinct vertices.", nameof(vertices));
 
@@ -104,25 +110,40 @@ public sealed class Window
 
         var raw = pts.Select(p => { var d = p - origin; return new Vec3(d.Dot(u), d.Dot(v), d.Dot(w)); }).ToArray();
         double scale = Math.Max(raw.Max(p => p.X) - raw.Min(p => p.X), raw.Max(p => p.Y) - raw.Min(p => p.Y));
-        if (raw.Any(p => Math.Abs(p.Z) > PlanarityTolerance * scale))
+        double planeOffset = raw.Average(p => p.Z);
+        if (raw.Any(p => Math.Abs(p.Z - planeOffset) > PlanarityTolerance * scale))
             throw new ArgumentException("Window is not planar.", nameof(vertices));
 
         var outline = raw.Select(p => new Point2(p.X / scale, p.Y / scale)).ToArray();
         if (SelfIntersects(outline))
             throw new ArgumentException("Window outline intersects itself.", nameof(vertices));
 
-        return new Window(pts.ToArray(), w, origin, u, v, scale, area, outline);
+        return new Window(pts.ToArray(), w, origin, u, v, scale, area, outline, planeOffset);
     }
 
     /// <summary>World point → normalised local coordinates (Z along the normal).</summary>
     internal Vec3 ToLocal(Vec3 world)
     {
         var d = world - Origin;
-        return new Vec3(d.Dot(U) / Scale, d.Dot(V) / Scale, d.Dot(Normal) / Scale);
+        return new Vec3(d.Dot(U) / Scale, d.Dot(V) / Scale, (d.Dot(Normal) - _planeOffset) / Scale);
     }
 
     /// <summary>Normalised in-plane point → world point on the glass.</summary>
-    internal Vec3 ToWorld(Point2 local) => Origin + U * (local.X * Scale) + V * (local.Y * Scale);
+    internal Vec3 ToWorld(Point2 local) =>
+        Origin + U * (local.X * Scale) + V * (local.Y * Scale) + Normal * _planeOffset;
+
+    /// <summary>Drops each vertex closer than <paramref name="tolerance"/> to the previous kept one,
+    /// and the closing vertex if it is that close to the first.</summary>
+    private static List<Vec3> RemoveRepeatedVertices(List<Vec3> pts, double tolerance)
+    {
+        var kept = new List<Vec3>(pts.Count);
+        foreach (var p in pts)
+            if (kept.Count == 0 || (p - kept[kept.Count - 1]).Length > tolerance)
+                kept.Add(p);
+        while (kept.Count > 1 && (kept[kept.Count - 1] - kept[0]).Length <= tolerance)
+            kept.RemoveAt(kept.Count - 1);
+        return kept;
+    }
 
     private static double BoundingDiagonal(IReadOnlyList<Vec3> pts)
     {

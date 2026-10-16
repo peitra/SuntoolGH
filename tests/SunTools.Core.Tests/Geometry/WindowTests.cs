@@ -40,6 +40,22 @@ public class WindowTests
     }
 
     [Fact]
+    public void Repeated_consecutive_vertex_is_removed()
+    {
+        var w = Window.Create(new[] { V(0, 0, 0), V(1, 0, 0), V(1, 0, 0), V(1, 1, 0), V(0, 1, 0) });
+        Assert.Equal(4, w.Vertices.Count);
+        Close(1, w.Area, 1e-12);
+    }
+
+    [Fact]
+    public void Closing_vertex_within_modelling_tolerance_is_removed()
+    {
+        var w = Window.Create(new[] { V(0, 0, 0), V(1, 0, 0), V(1, 1, 0), V(0, 1, 0), V(1e-7, 0, 0) });
+        Assert.Equal(4, w.Vertices.Count);
+        Close(1, w.Area, 1e-6);
+    }
+
+    [Fact]
     public void Concave_window_is_accepted()
     {
         var w = Window.Create(new[] { V(0, 0, 0), V(1, 0, 0), V(1, 0.5, 0), V(0.5, 0.5, 0), V(0.5, 1, 0), V(0, 1, 0) });
