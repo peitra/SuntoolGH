@@ -98,6 +98,15 @@ public class AnalyticCaseTests
     }
 
     [Fact]
+    public void Two_opposite_windings_over_the_same_area_still_shade_it()
+    {
+        // NonZero winding numbers +1 and −1 cancel unless the engine orients every piece.
+        var reversed = Quad(V(0, 0, 0.3), V(0, 1, 0.3), V(0.5, 1, 0.3), V(0.5, 0, 0.3));
+        var shade = Merge(Plate(0, 0, 0.5, 1, 0.3), reversed);
+        Close(0.5, F(RectWindow(1, 1), shade, Sun(0, 0, 1)), Tol);
+    }
+
+    [Fact]
     public void Nearly_grazing_sun_does_not_overflow()
     {
         double f = F(RectWindow(1, 1), Plate(-10, -10, 10, 10, 0.5), Sun(1, 0, 1e-6));
