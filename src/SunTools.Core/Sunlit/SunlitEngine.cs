@@ -82,8 +82,14 @@ public static class SunlitEngine
             foreach (var p in piece)
                 projected.Add(new Point2(p.X - p.Z * du, p.Y - p.Z * dv));
             var inside = ConvexClip.ClipToRect(projected, w.MinX, w.MinY, w.MaxX, w.MaxY);
-            if (inside.Count >= 3)
-                clip.Add(ClipperConvert.ToPath64(inside));
+            if (inside.Count < 3)
+                continue;
+            // NonZero sums signed windings: a clockwise piece (−1) over a counter-clockwise one
+            // (+1) would cancel. Orienting every piece positively makes NonZero a plain union.
+            var path = ClipperConvert.ToPath64(inside);
+            if (!Clipper.IsPositive(path))
+                path.Reverse();
+            clip.Add(path);
         }
 
         Paths64 sunlit;

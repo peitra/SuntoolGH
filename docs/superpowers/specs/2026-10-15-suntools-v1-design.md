@@ -88,8 +88,10 @@ Steps:
    and culls far geometry.
 5. **One boolean operation:** `Difference(window, projected polygons)` with the
    *NonZero* fill rule, in Clipper2 64-bit integers at scale 1e9 of the normalised
-   frame. The union of the projections is implicit; triangle orientation is irrelevant.
-   Result: sunlit area `A_s`.
+   frame. Every projected polygon is first oriented counter-clockwise: NonZero sums
+   signed winding numbers, so a clockwise piece over a counter-clockwise one would
+   cancel its shadow. With consistent orientation the union is implicit and the input
+   triangle winding is irrelevant. Result: sunlit area `A_s`.
 6. **Outputs:** `f = A_s / A_window`; `E_dir = f · DNI · (s·n)`.
 
 Hours are independent and computed in parallel (`Parallel.For`). On request the Core
@@ -173,9 +175,10 @@ red runtime messages and skipped/counted items to orange warnings.
   under translation or rotation of the whole scene together with the sun.
 - **Ray-casting oracle:** ~500 random scenes from fixed seeds (random triangles,
   concave meshes, slats, geometry on both sides of the glass, random suns). Brute-force
-  reference: 400 × 400 grid on the window, one Möller–Trumbore ray per point towards
-  the sun against every triangle. Tolerance 0.01 (grid discretisation). A failure
-  prints its seed.
+  reference: 401 × 401 grid on the window (prime size, so that evenly spaced slat edges
+  do not all fall at the same offset from the grid rows), one Möller–Trumbore ray per
+  point towards the sun against every triangle. Tolerance 0.01 (grid discretisation).
+  A failure prints its seed.
 - **Solar:** SPA against the NREL reference case (Reda & Andreas 2004: Golden, CO,
   2003-10-17 12:30:30, UTC−7) within 1e-4°; EPW reader on a sample file including
   missing values.
