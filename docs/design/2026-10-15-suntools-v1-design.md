@@ -81,9 +81,11 @@ Steps:
    convex quadrilateral.
 3. **Project along the sun onto `w = 0`:** `P' = P − (P_w / s_w)·s`. The image of a
    convex polygon under this affine map is a convex polygon.
-4. **Clip to the window bounding box** with Clipper2 `RectClip` (double precision) and
-   drop polygons with near-zero area. This bounds coordinates before integer
-   conversion (grazing suns produce very large projections) and culls far geometry.
+4. **Clip to the window bounding box** in double precision (the same convex
+   Sutherland–Hodgman routine as step 2, applied to four half-planes; Clipper2's
+   `RectClip` on `PathsD` is capped at 8 decimals) and drop empty results. This bounds
+   coordinates before integer conversion (grazing suns produce very large projections)
+   and culls far geometry.
 5. **One boolean operation:** `Difference(window, projected polygons)` with the
    *NonZero* fill rule, in Clipper2 64-bit integers at scale 1e9 of the normalised
    frame. The union of the projections is implicit; triangle orientation is irrelevant.
