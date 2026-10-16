@@ -1,5 +1,0 @@
-c:\users\admin\documents\visual studio 2015\Projects\MyProject3\MyProject3\obj\Debug32\SunToolsGH.csprojResolveAssemblyReference.cache
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\bin\MyProject3.dll
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\bin\MyProject3.pdb
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\Debug32\MyProject3.dll
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\Debug32\MyProject3.pdb
