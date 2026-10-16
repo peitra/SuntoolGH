@@ -59,4 +59,13 @@ internal static class TestScenes
     }
 
     public static Vec3 Sun(double x, double y, double z) => V(x, y, z).Normalized();
+
+    /// <summary>Area of a planar 3D polygon, signed along <paramref name="normal"/>.</summary>
+    public static double SignedArea(IReadOnlyList<Vec3> poly, Vec3 normal)
+    {
+        var acc = new Vec3(0, 0, 0);
+        for (int i = 1; i + 1 < poly.Count; i++)
+            acc = acc + (poly[i] - poly[0]).Cross(poly[i + 1] - poly[0]);
+        return acc.Dot(normal) / 2;
+    }
 }
