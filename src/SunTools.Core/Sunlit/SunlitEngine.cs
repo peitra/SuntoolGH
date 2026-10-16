@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Clipper2Lib;
 using SunTools.Core.Geometry;
 
@@ -22,6 +23,45 @@ public static class SunlitEngine
         var unitSun = ValidateSun(sun, 0);
         ValidateDni(dni, 0);
         return ComputeHour(PreparedScene.Build(window, shade), unitSun, dni, includePolygons);
+    }
+
+    /// <summary>Computes every hour; the scene is prepared once.</summary>
+    /// <param name="suns">Directions towards the sun, one per hour.</param>
+    /// <param name="dni">Direct normal irradiance per hour in W/m².</param>
+    /// <param name="parallel">Compute hours in parallel (results are identical either way).</param>
+    public static SunlitSeries Compute(Window window, ShadeMesh shade, IReadOnlyList<Vec3> suns,
+        IReadOnlyList<double> dni, bool parallel = true)
+    {
+        if (window == null) throw new ArgumentNullException(nameof(window));
+        if (shade == null) throw new ArgumentNullException(nameof(shade));
+        if (suns == null) throw new ArgumentNullException(nameof(suns));
+        if (dni == null) throw new ArgumentNullException(nameof(dni));
+        if (suns.Count != dni.Count)
+            throw new ArgumentException($"Got {suns.Count} sun vectors but {dni.Count} DNI values.", nameof(dni));
+
+        var unitSuns = new Vec3[suns.Count];
+        for (int i = 0; i < suns.Count; i++)
+        {
+            unitSuns[i] = ValidateSun(suns[i], i);
+            ValidateDni(dni[i], i);
+        }
+
+        var scene = PreparedScene.Build(window, shade);
+        var fraction = new double[unitSuns.Length];
+        var irradiance = new double[unitSuns.Length];
+        void One(int i)
+        {
+            var r = ComputeHour(scene, unitSuns[i], dni[i], includePolygons: false);
+            fraction[i] = r.SunlitFraction;
+            irradiance[i] = r.DirectIrradiance;
+        }
+
+        if (parallel)
+            Parallel.For(0, unitSuns.Length, One);
+        else
+            for (int i = 0; i < unitSuns.Length; i++) One(i);
+
+        return new SunlitSeries(fraction, irradiance, scene.DegenerateTriangleCount);
     }
 
     internal static HourResult ComputeHour(PreparedScene scene, Vec3 unitSun, double dni, bool includePolygons)
