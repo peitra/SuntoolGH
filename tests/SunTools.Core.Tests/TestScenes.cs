@@ -33,4 +33,8 @@ internal static class TestScenes
         Close(expected.Y, actual.Y, tolerance);
         Close(expected.Z, actual.Z, tolerance);
     }
+
+    /// <summary>Rectangle [0,w]×[0,h] in plane z = 0, outward normal +Z.</summary>
+    public static Window RectWindow(double w, double h) =>
+        Window.Create(new[] { V(0, 0, 0), V(w, 0, 0), V(w, h, 0), V(0, h, 0) });
 }
