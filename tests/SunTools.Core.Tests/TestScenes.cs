@@ -37,4 +37,26 @@ internal static class TestScenes
     /// <summary>Rectangle [0,w]×[0,h] in plane z = 0, outward normal +Z.</summary>
     public static Window RectWindow(double w, double h) =>
         Window.Create(new[] { V(0, 0, 0), V(w, 0, 0), V(w, h, 0), V(0, h, 0) });
+
+    public static ShadeMesh Quad(Vec3 a, Vec3 b, Vec3 c, Vec3 d) =>
+        new ShadeMesh(new[] { a, b, c, d }, new[] { 0, 1, 2, 0, 2, 3 });
+
+    /// <summary>Axis-aligned plate [x0,x1]×[y0,y1] parallel to the z = 0 window, at height z.</summary>
+    public static ShadeMesh Plate(double x0, double y0, double x1, double y1, double z) =>
+        Quad(V(x0, y0, z), V(x1, y0, z), V(x1, y1, z), V(x0, y1, z));
+
+    public static ShadeMesh Merge(params ShadeMesh[] parts)
+    {
+        var vertices = new List<Vec3>();
+        var triangles = new List<int>();
+        foreach (var part in parts)
+        {
+            int offset = vertices.Count;
+            vertices.AddRange(part.Vertices);
+            foreach (int t in part.Triangles) triangles.Add(t + offset);
+        }
+        return new ShadeMesh(vertices, triangles);
+    }
+
+    public static Vec3 Sun(double x, double y, double z) => V(x, y, z).Normalized();
 }
