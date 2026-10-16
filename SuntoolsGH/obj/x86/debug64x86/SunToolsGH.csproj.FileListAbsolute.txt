@@ -1,4 +1,0 @@
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\x86\debug64x86\SunToolsGH.csprojResolveAssemblyReference.cache
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\x86\debug64x86\MyProject3.dll
-C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\bin\x86\MyProject3.dll
-C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\MyProject3.dll
