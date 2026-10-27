@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using SunTools.Core.Geometry;
 using SunTools.Core.Solar;
+using SunTools.Core.Sunlit;
 using Xunit;
 
 namespace SunTools.Core.Tests.Solar;
@@ -140,6 +141,51 @@ public class SunPathTests
         Assert.Equal(path.Count, path.Dni.Count);
         Assert.Equal(path.Count, path.Azimuth.Count);
         Assert.Empty(path.MissingDniHoy);
+    }
+
+    /// <summary>
+    /// SPA's own surface-incidence formula (§3.15) against our vector conversion and the engine's
+    /// s·n: an unshaded vertical window must receive DNI·cos θ every sunny hour. East and west
+    /// windows are needed: a south window is blind to an east/west mirror of the sun vector.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 1, 0, 0, -1, 0, 0)]    // north +Y, window faces south (-Y)
+    [InlineData(0, 1, 0, 1, 0, 0, -90)]   // north +Y, window faces east (+X)
+    [InlineData(0, 1, 0, -1, 0, 0, 90)]   // north +Y, window faces west (-X)
+    [InlineData(1, 0, 0, -1, 0, 0, 0)]    // north +X, window faces south (-X)
+    [InlineData(1, 0, 0, 0, -1, 0, -90)]  // north +X, window faces east (-Y)
+    public void Unshaded_window_irradiance_equals_SPA_incidence(double nx, double ny, double nz,
+        double wx, double wy, double wz, double surfaceAzimuthRotation)
+    {
+        const double Dni = 800;
+        var north = new Vec3(nx, ny, nz);
+        var normal = new Vec3(wx, wy, wz);
+        var epw = Epw(EpwBuilder.Golden, dni: (m, d, h) => Dni);
+        var path = SunPath.FromEpw(epw, north);
+
+        // A 1 × 1 m vertical square whose plane is perpendicular to the normal.
+        var side = new Vec3(0, 0, 1).Cross(normal);
+        var window = Window.Create(new[]
+        {
+            new Vec3(0, 0, 0), side, side + new Vec3(0, 0, 1), new Vec3(0, 0, 1),
+        }, normal);
+        var result = SunlitEngine.Compute(window, ShadeMesh.Empty, path.Sun, path.Dni);
+
+        int sunny = 0;
+        for (int k = 0; k < path.Count; k++)
+        {
+            var r = epw.Records[path.Hoy[k]];
+            var position = Spa.Compute(r.Year, r.Month, r.Day, r.Hour - 1, 30, 0, -7, 39.742476, -105.1786,
+                1829, 1013.25, 20, 69);
+            double cos = Math.Cos(Spa.Incidence(position, 90, surfaceAzimuthRotation) * Math.PI / 180);
+            Assert.InRange(Math.Abs(result.DirectIrradiance[k] - Dni * Math.Max(0, cos)), 0, 1e-9 * Dni);
+            if (cos > 1e-9)
+            {
+                Assert.Equal(1.0, result.SunlitFraction[k], 9);
+                sunny++;
+            }
+        }
+        Assert.InRange(sunny, 1000, path.Count);
     }
 
     [Fact]

@@ -16,7 +16,7 @@ Grasshopper.
 
 > **Status: work in progress. There is no Grasshopper plugin to install yet.**
 > The repository currently contains the computation engine (`SunTools.Core`), a .NET
-> library with no Rhino dependency, and its test suite. The Grasshopper components come
+> library with no Rhino dependency, with its solar-position module and its test suite. The Grasshopper components come
 > in a later step (see [Roadmap](#roadmap)).
 
 ## How the engine works
@@ -76,6 +76,27 @@ Invalid input (a non-planar or self-intersecting window, a zero sun vector, nega
 DNI) raises an `ArgumentException` with an explicit message. Zero-area shade triangles
 are skipped and counted in `SunlitSeries.DegenerateTriangleCount`.
 
+### Sun path from a weather file
+
+`SunTools.Core.Solar` reads an EnergyPlus weather file (EPW) and computes the sun
+position with the NREL Solar Position Algorithm (Reda & Andreas, 2004):
+
+```csharp
+using SunTools.Core.Solar;
+
+EpwFile epw = EpwFile.Load("FRA_Paris.epw");
+SunPath path = SunPath.FromEpw(epw, north: new Vec3(0, 1, 0));   // model north = +Y
+SunlitSeries s = SunlitEngine.Compute(window, shade, path.Sun, path.Dni);
+// s.SunlitFraction[k] belongs to hour of year path.Hoy[k]
+```
+
+`SunPath` keeps only the hours with the sun above the horizon. Each EPW hour is
+evaluated at its middle, in local standard time (hour 13 → 12:30), since EPW
+irradiance is the average over the hour that ends at 13:00. Hours with no DNI in the
+file (9999) are dropped and listed in `SunPath.MissingDniHoy`. `Spa.Compute` gives the
+sun position for any place and time directly. Selecting a subset of hours is left to
+the caller (the Grasshopper component will offer it).
+
 ## Build and test
 
 You need the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). Then run:
@@ -103,6 +124,14 @@ pull request.
 - **Edge cases typical of real models**: the glass itself passed as shade geometry, closed polylines that repeat their first vertex, near-grazing suns,
   duplicated or reversed triangles, georeferenced coordinates (≈ 4,000 km from the
   origin), and windows of 1 cm.
+- **Solar position**: the reference case published with the algorithm (Reda & Andreas
+  2004, intermediate values and final angles), the Julian-day examples of Meeus, and
+  1,000 points computed with pvlib's independent implementation of the same algorithm
+  (any site, years 1900 to 2100, 200 of them within 2° of the horizon) to within 1e-6°.
+  The generator script is in `tests/SunTools.Core.Tests/Solar/Reference/`.
+- **Weather file to engine**: an unshaded window facing south, east or west receives
+  `DNI · cos θ` every sunny hour, where θ comes from the algorithm's own surface
+  formula, independently of the sun-vector conversion.
 
 Validation against EnergyPlus has **not been done yet**. It is planned, see below.
 
@@ -111,7 +140,7 @@ Validation against EnergyPlus has **not been done yet**. It is planned, see belo
 | Step | Content | State |
 |---|---|---|
 | 1 | Core sunlit-fraction engine and its tests | done |
-| 2 | Solar position: EPW weather-file reader, NREL SPA | planned |
+| 2 | Solar position: EPW weather-file reader, NREL SPA | done |
 | 3 | Grasshopper plugin for Rhino 8 (Windows and macOS): Sun Path, Shade States, Sunlit Analysis, Export Table | planned |
 | 4 | Validation against EnergyPlus (PixelCounting) on overhang, fin, concave and multi-slat cases and on awning, venetian and two-axis tracker examples. Target: p95 of \|f − f_EnergyPlus\| ≤ 0.02 | planned |
 

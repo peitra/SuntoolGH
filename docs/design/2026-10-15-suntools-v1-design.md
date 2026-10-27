@@ -159,6 +159,13 @@ decimal separator, header row.
 | Sun vectors all `z > 0` | Used as is |
 | Sun vectors mixed sign in `z` | Error, unless the direction override input is set |
 | Window normal | Optional input; default from surface normal or right-hand rule; always drawn as an arrow in the preview |
+| EPW hour `h` (hour ending, local standard time) | Sun computed at `h−1:30` the same day, in the file's time zone: EPW irradiance is the hour's average |
+| EPW row years differ (typical-year files) | Each row's own year is used; an optional year overrides all rows |
+| Hour of year (HOY) | `(dayOfYear − 1)·24 + h − 1`; leap calendar only for 8,784-row files |
+| Sun at or below the horizon (apparent elevation ≤ 0) | Hour left out of the sun path (not a sunny hour, see 7.2) |
+| EPW pressure or temperature missing | Standard atmosphere at the site elevation; 10 °C. Both only affect refraction (~0.01°) |
+| ΔT (TT − UT) | 69 s by default, overridable |
+| EPW not hourly (other than 8,760 or 8,784 rows), out of order, or malformed | Error naming the line |
 
 The Core throws `ArgumentException` with an explicit message; the plugin maps errors to
 red runtime messages and skipped/counted items to orange warnings.
@@ -180,8 +187,15 @@ red runtime messages and skipped/counted items to orange warnings.
   point towards the sun against every triangle. Tolerance 0.01 (grid discretisation).
   A failure prints its seed.
 - **Solar:** SPA against the NREL reference case (Reda & Andreas 2004: Golden, CO,
-  2003-10-17 12:30:30, UTC−7) within 1e-4°; EPW reader on a sample file including
-  missing values.
+  2003-10-17 12:30:30, UTC−7) within 1e-4°, with its intermediate values; Julian days
+  against the Meeus examples (Julian and Gregorian calendars); 1,000 points from pvlib's
+  independent SPA implementation (seeded generator committed with the tests, 200 points
+  within 2° of the horizon) within 1e-6°; EPW reader on synthetic files including
+  missing values, leap years, CRLF and Latin-1 headers, and malformed files.
+- **Weather file to engine:** an unshaded vertical window facing south, east or west
+  receives `DNI · cos θ` every sunny hour, θ from SPA's own surface-incidence formula
+  (independent of the sun-vector conversion; a south window alone cannot see an
+  east/west mirror).
 
 ### 7.2 EnergyPlus validation (manual, `validation/`)
 
