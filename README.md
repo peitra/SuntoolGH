@@ -131,4 +131,4 @@ October 2026.
 GPL-3.0, see [`LICENSE.md`](LICENSE.md).
 
 Maintained by Victor Charpentier, [PEITRA](https://peitra.eu).
-Contact: vc6@alumni.princeton.edu
+Contact: victor.charpentier@peitra.eu
