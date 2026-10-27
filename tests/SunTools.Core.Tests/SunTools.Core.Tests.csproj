@@ -9,6 +9,9 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Solar\Reference\spa_reference.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SunTools.Core\SunTools.Core.csproj" />
   </ItemGroup>
 </Project>
