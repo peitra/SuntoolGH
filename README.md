@@ -122,9 +122,10 @@ engine.
 ## History
 
 SuntoolGH started in 2017 as a set of Grasshopper tools for research on actuated shading.
-That code is kept unchanged on the `develop` branch. It is not
-maintained and, as its own README states, not functional. The `master` branch is a rewrite started in
-October 2026.
+That code is kept unchanged at the tag
+[`v0-2017`](https://github.com/peitra/SuntoolGH/tree/v0-2017) (last state of `master`
+before the rewrite) and on the `develop` branch. It is not maintained and, as its own
+README states, not functional. The `master` branch is a rewrite started in October 2026.
 
 ## License and contact
 
