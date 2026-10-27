@@ -55,7 +55,7 @@ public static class Spa
     {
         Check(year, -2000, 6000, nameof(year));
         Check(month, 1, 12, nameof(month));
-        Check(day, 1, 31, nameof(day));
+        Check(day, 1, DaysInMonth(year, month), nameof(day));
         Check(hour, 0, 24, nameof(hour));
         Check(minute, 0, 59, nameof(minute));
         if (!(second >= 0 && second < 60))
@@ -163,6 +163,15 @@ public static class Spa
             jd += 2 - a + Math.Floor(a / 4);
         }
         return jd;
+    }
+
+    // Julian calendar (every fourth year a leap year) before 1582-10-15, Gregorian after, as in JulianDay.
+    private static int DaysInMonth(int year, int month)
+    {
+        if (month != 2) return month == 4 || month == 6 || month == 9 || month == 11 ? 30 : 31;
+        bool gregorian = year > 1582;
+        bool leap = year % 4 == 0 && (!gregorian || year % 100 != 0 || year % 400 == 0);
+        return leap ? 29 : 28;
     }
 
     private static double Series(double[][,] tables, double jme)

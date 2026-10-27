@@ -88,6 +88,26 @@ public class SpaReferenceTests
     }
 
     [Theory]
+    [InlineData(2023, 2, 29)]   // not a leap year
+    [InlineData(1900, 2, 29)]   // Gregorian century rule
+    [InlineData(2023, 4, 31)]
+    [InlineData(2023, 11, 31)]
+    public void Impossible_calendar_dates_throw(int year, int month, int day)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            Spa.Compute(year, month, day, 12, 0, 0, 0, 45, 0, 0, 1013.25, 10));
+        Assert.Contains("day", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(2024, 2, 29)]
+    [InlineData(2000, 2, 29)]
+    [InlineData(1500, 2, 29)]   // Julian calendar: every fourth year
+    [InlineData(-1000, 2, 29)]
+    public void Real_leap_days_are_accepted(int year, int month, int day) =>
+        Spa.Compute(year, month, day, 12, 0, 0, 0, 45, 0, 0, 1013.25, 10);
+
+    [Theory]
     [InlineData("year", -2001)]
     [InlineData("year", 6001)]
     [InlineData("month", 0)]

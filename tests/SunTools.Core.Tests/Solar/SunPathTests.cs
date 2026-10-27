@@ -132,6 +132,15 @@ public class SunPathTests
     }
 
     [Fact]
+    public void Non_leap_year_override_on_a_leap_file_throws()
+    {
+        var leapFile = EpwFile.Parse(new StringReader(EpwBuilder.Build(EpwBuilder.Golden, leap: true)));
+        var ex = Assert.Throws<ArgumentException>(() => SunPath.FromEpw(leapFile, North, year: 2023));
+        Assert.Contains("day", ex.Message);
+        SunPath.FromEpw(leapFile, North, year: 2024); // a leap override stays possible
+    }
+
+    [Fact]
     public void Below_horizon_hours_are_excluded()
     {
         var path = SunPath.FromEpw(Epw(EpwBuilder.Golden), North);
