@@ -189,6 +189,50 @@ public class SunPathTests
     }
 
     [Fact]
+    public void FromLocation_matches_FromEpw_geometry()
+    {
+        double standardPa = SunPath.StandardPressure(1829) * 100;
+        var text = EpwBuilder.Build(EpwBuilder.Golden, rowYear: 2003,
+            edit: (m, d, h, f) => { f[6] = "10"; f[9] = standardPa.ToString("R", System.Globalization.CultureInfo.InvariantCulture); });
+        var fromEpw = SunPath.FromEpw(EpwFile.Parse(new StringReader(text)), North);
+        var fromLocation = SunPath.FromLocation(39.742476, -105.1786, -7, 1829, 2003, North);
+        Assert.Equal(fromEpw.Hoy, fromLocation.Hoy);
+        for (int k = 0; k < fromEpw.Count; k++)
+        {
+            Assert.Equal(fromEpw.Zenith[k], fromLocation.Zenith[k], 9);
+            Assert.Equal(fromEpw.Azimuth[k], fromLocation.Azimuth[k], 9);
+            Close(fromEpw.Sun[k], fromLocation.Sun[k], 1e-12);
+        }
+        Assert.True(fromEpw.HasDni);
+    }
+
+    [Fact]
+    public void FromLocation_leap_year_has_8784_candidate_hours()
+    {
+        var path = SunPath.FromLocation(39.742476, -105.1786, -7, 1829, 2004, North);
+        Assert.InRange(path.Hoy.Max(), 8760, 8783);
+        var common = SunPath.FromLocation(39.742476, -105.1786, -7, 1829, 2003, North);
+        Assert.InRange(common.Hoy.Max(), 8700, 8759);
+    }
+
+    [Fact]
+    public void FromLocation_has_no_dni()
+    {
+        var path = SunPath.FromLocation(48.85, 2.35, 1, 35, 2026, North);
+        Assert.False(path.HasDni);
+        Assert.All(path.Dni, d => Assert.True(double.IsNaN(d)));
+        Assert.Empty(path.MissingDniHoy);
+        Assert.InRange(path.Count, 4000, 4700);
+    }
+
+    [Fact]
+    public void FromLocation_rejects_bad_latitude()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => SunPath.FromLocation(91, 0, 0, 0, 2026, North));
+        Assert.Contains("latitude", ex.Message);
+    }
+
+    [Fact]
     public void Missing_pressure_and_temperature_fall_back_to_standard_values()
     {
         var text = EpwBuilder.Build(EpwBuilder.Golden, edit: (m, d, h, f) => { f[6] = "99.9"; f[9] = "999999"; });

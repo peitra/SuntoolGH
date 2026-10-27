@@ -93,8 +93,10 @@ SunlitSeries s = SunlitEngine.Compute(window, shade, path.Sun, path.Dni);
 `SunPath` keeps only the hours with the sun above the horizon. Each EPW hour is
 evaluated at its middle, in local standard time (hour 13 → 12:30), since EPW
 irradiance is the average over the hour that ends at 13:00. Hours with no DNI in the
-file (9999) are dropped and listed in `SunPath.MissingDniHoy`. `Spa.Compute` gives the
-sun position for any place and time directly. Selecting a subset of hours is left to
+file (9999) are dropped and listed in `SunPath.MissingDniHoy`. Without a weather file,
+`SunPath.FromLocation(latitude, longitude, timeZone, elevation, year, north)` gives the
+same hourly sun path for any site (no DNI), and `Spa.Compute` gives the sun position
+for any place and time. Selecting a subset of hours is left to
 the caller (the Grasshopper component will offer it).
 
 ## Build and test

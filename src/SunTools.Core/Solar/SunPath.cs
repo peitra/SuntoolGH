@@ -14,15 +14,24 @@ public sealed class SunPath
     /// <summary>Dry-bulb temperature (°C) used for refraction when the weather file has none.</summary>
     public const double FallbackTemperature = 10.0;
 
-    private SunPath(List<int> hoy, List<Vec3> sun, List<double> dni, List<double> zenith, List<double> azimuth,
-        List<int> missingDniHoy)
+    private static readonly int[] DaysInMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+    private readonly List<int> _hoy = new List<int>();
+    private readonly List<Vec3> _sun = new List<Vec3>();
+    private readonly List<double> _dni = new List<double>();
+    private readonly List<double> _zenith = new List<double>();
+    private readonly List<double> _azimuth = new List<double>();
+    private readonly List<int> _missingDniHoy = new List<int>();
+
+    private SunPath(bool hasDni)
     {
-        Hoy = hoy;
-        Sun = sun;
-        Dni = dni;
-        Zenith = zenith;
-        Azimuth = azimuth;
-        MissingDniHoy = missingDniHoy;
+        HasDni = hasDni;
+        Hoy = _hoy;
+        Sun = _sun;
+        Dni = _dni;
+        Zenith = _zenith;
+        Azimuth = _azimuth;
+        MissingDniHoy = _missingDniHoy;
     }
 
     /// <summary>Hour of year (0-based) of each kept hour.</summary>
@@ -31,8 +40,11 @@ public sealed class SunPath
     /// <summary>Unit vectors towards the sun, world frame, Z up.</summary>
     public IReadOnlyList<Vec3> Sun { get; }
 
-    /// <summary>Direct normal irradiance, W/m².</summary>
+    /// <summary>Direct normal irradiance, W/m²; all NaN when <see cref="HasDni"/> is false.</summary>
     public IReadOnlyList<double> Dni { get; }
+
+    /// <summary>False for a path built from a location alone (<see cref="FromLocation"/>).</summary>
+    public bool HasDni { get; }
 
     /// <summary>Topocentric zenith angle with refraction, degrees.</summary>
     public IReadOnlyList<double> Zenith { get; }
@@ -55,32 +67,59 @@ public sealed class SunPath
         SunVectors.UnitNorth(north);
         var loc = epw.Location;
         double standardPressure = StandardPressure(loc.Elevation);
-
-        var hoy = new List<int>();
-        var sun = new List<Vec3>();
-        var dni = new List<double>();
-        var zenith = new List<double>();
-        var azimuth = new List<double>();
-        var missing = new List<int>();
+        var path = new SunPath(hasDni: true);
         foreach (var r in epw.Records)
         {
             if (double.IsNaN(r.Dni))
             {
-                missing.Add(r.Hoy);
+                path._missingDniHoy.Add(r.Hoy);
                 continue;
             }
             double pressure = double.IsNaN(r.Pressure) ? standardPressure : r.Pressure / 100.0;
             double temperature = double.IsNaN(r.DryBulb) ? FallbackTemperature : r.DryBulb;
-            var p = Spa.Compute(year ?? r.Year, r.Month, r.Day, r.Hour - 1, 30, 0, loc.TimeZone, loc.Latitude,
-                loc.Longitude, loc.Elevation, pressure, temperature, deltaT);
-            if (p.Elevation <= 0) continue;
-            hoy.Add(r.Hoy);
-            sun.Add(SunVectors.FromAngles(p.Azimuth, p.Zenith, north));
-            dni.Add(r.Dni);
-            zenith.Add(p.Zenith);
-            azimuth.Add(p.Azimuth);
+            path.AddHour(r.Hoy, year ?? r.Year, r.Month, r.Day, r.Hour, loc.TimeZone, loc.Latitude, loc.Longitude,
+                loc.Elevation, pressure, temperature, deltaT, north, r.Dni);
         }
-        return new SunPath(hoy, sun, dni, zenith, azimuth, missing);
+        return path;
+    }
+
+    /// <summary>
+    /// Sun path of any site for one calendar year, without weather data: every hour of
+    /// <paramref name="year"/> at its middle (local standard time), standard-atmosphere pressure,
+    /// 10 °C. <see cref="Dni"/> is all NaN, so <c>SunlitEngine.Compute</c> needs DNI from elsewhere.
+    /// </summary>
+    public static SunPath FromLocation(double latitude, double longitude, double timeZone, double elevation,
+        int year, Vec3 north, double deltaT = Spa.DefaultDeltaT)
+    {
+        SunVectors.UnitNorth(north);
+        bool leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+        double pressure = StandardPressure(elevation);
+        var path = new SunPath(hasDni: false);
+        int hoy = 0;
+        for (int month = 1; month <= 12; month++)
+        {
+            int days = DaysInMonth[month - 1] + (leap && month == 2 ? 1 : 0);
+            for (int day = 1; day <= days; day++)
+            for (int hour = 1; hour <= 24; hour++, hoy++)
+                path.AddHour(hoy, year, month, day, hour, timeZone, latitude, longitude, elevation, pressure,
+                    FallbackTemperature, deltaT, north, double.NaN);
+        }
+        return path;
+    }
+
+    // EPW-style hour (1-24, hour ending) evaluated at its middle; kept only above the horizon.
+    private void AddHour(int hoy, int year, int month, int day, int hour, double timeZone, double latitude,
+        double longitude, double elevation, double pressure, double temperature, double deltaT, Vec3 north,
+        double dni)
+    {
+        var p = Spa.Compute(year, month, day, hour - 1, 30, 0, timeZone, latitude, longitude, elevation, pressure,
+            temperature, deltaT);
+        if (p.Elevation <= 0) return;
+        _hoy.Add(hoy);
+        _sun.Add(SunVectors.FromAngles(p.Azimuth, p.Zenith, north));
+        _dni.Add(dni);
+        _zenith.Add(p.Zenith);
+        _azimuth.Add(p.Azimuth);
     }
 
     /// <summary>Standard-atmosphere pressure (mbar) at an elevation in metres.</summary>
